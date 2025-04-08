@@ -1,5 +1,5 @@
 const toWei = (val) => web3.utils.toWei(val.toString())
-const fromWei = (val) => web3.utils.fromWei(val.toString())
+const fromWei = (val) => parseFloat(web3.utils.fromWei(val.toString()))
 async function simulateDEX() {
     try {
         console.log('Starting DEX Simulation...')
@@ -81,7 +81,7 @@ async function simulateDEX() {
         for (let i = 0; i < lPs.length; i++) {
             const amtA = 150 + Math.floor(Math.random() * 50)
             const spotPrice = await dex.methods.getSpotPrice().call()
-            const ratioAtoB = parseFloat(fromWei(spotPrice))
+            const ratioAtoB = fromWei(spotPrice)
             const amtB =
                 ratioAtoB !== 0
                     ? amtA / ratioAtoB
@@ -107,6 +107,7 @@ async function simulateDEX() {
         // ================== FOR METRICS ========================
         const reserveA_metric = []
         const reserveB_metric = []
+        const tvl_metric = []
         const reserveRatio_metric = []
         const lp_balance_metric = [[], [], [], [], []]
         const swappedA_metric = []
@@ -133,15 +134,9 @@ async function simulateDEX() {
                 action === 'swap'
                     ? traders[Math.floor(Math.random() * traders.length)]
                     : lPs[Math.floor(Math.random() * lPs.length)]
-            const balanceA = parseFloat(
-                fromWei(await tokenA.methods.balanceOf(user).call())
-            )
-            const balanceB = parseFloat(
-                fromWei(await tokenB.methods.balanceOf(user).call())
-            )
-            const lpBalance = parseFloat(
-                fromWei(await dex.methods.lPTBalanceOf(user).call())
-            )
+            const balanceA = fromWei(await tokenA.methods.balanceOf(user).call())
+            const balanceB = fromWei(await tokenB.methods.balanceOf(user).call())
+            const lpBalance = fromWei(await dex.methods.lPTBalanceOf(user).call())
 
             const reserveA = fromWei(await dex.methods.reserveA().call())
             const reserveB = fromWei(await dex.methods.reserveB().call())
@@ -163,10 +158,11 @@ async function simulateDEX() {
                         await tokenB.methods.balanceOf(user).call()
                     )
                     const fee = fromWei(await dex.methods.feeA().call())
-                    feeA = parseFloat(fee)
+                    console.log(`Amount, fee: ${amt}, ${fee}`)
+                    feeA = fee
                     swapA = amt
 
-                    const expectedOut = amt / parseFloat(spotPrice)
+                    const expectedOut = amt / spotPrice
                     const actualOut = newbalanceB - balanceB
 
                     const alpha = actualOut / amt // (token Y received) / (token X deposited)
@@ -194,7 +190,8 @@ async function simulateDEX() {
                         await tokenB.methods.balanceOf(user).call()
                     )
                     const fee = fromWei(await dex.methods.feeB().call())
-                    feeB = parseFloat(fee)
+                    console.log(`Amount, fee: ${amt}, ${fee}`)
+                    feeB = fee
                     const actualOut = newbalanceA - balanceA
                     const alpha = actualOut / amt
                     const beta = balanceA / balanceB
@@ -208,8 +205,7 @@ async function simulateDEX() {
                 }
             } else if (action === 'deposit') {
                 const amtA = Math.random() * balanceA
-                const spotPrice = await dex.methods.getSpotPrice().call()
-                const ratioAtoB = parseFloat(fromWei(spotPrice))
+                const ratioAtoB = fromWei(spotPrice)
                 const amtB = amtA / ratioAtoB
                 await dex.methods
                     .deposit(toWei(amtA), toWei(amtB))
@@ -233,6 +229,8 @@ async function simulateDEX() {
             reserveA_metric.push(resA)
             // 1.2: reserveB
             reserveB_metric.push(resB)
+            // 1.2.5: TVL
+            tvl_metric.push(resA + resB * spotPrice) // in terms of A
             // 1.3: ratio: resA/resB
             reserveRatio_metric.push(resB !== 0 ? resA / resB : 0)
             // 1.4: LP balance metric
@@ -268,6 +266,7 @@ async function simulateDEX() {
         }
         console.log(`reserveA_metric ${reserveA_metric}`)
         console.log(`reserveB_metric ${reserveB_metric}`)
+        console.log(`tvl_metric ${tvl_metric}`)
         console.log(`reserveRatio_metric ${reserveRatio_metric}`)
         console.log(`lp_balance_metric ${JSON.stringify(lp_balance_metric)}`)
         console.log(`swappedA_metric ${swappedA_metric}`)

@@ -111,7 +111,7 @@ contract DEX {
 
         // 0.3 % fee
         uint256 fee = (x * 3) / 1000;
-        feeA += fee;
+        feeA = fee;
         uint256 xAfterFee = x - fee;
         require(x != xAfterFee, "Withdraw amount too small");
         // uint256 xAfterFee = x;
@@ -137,7 +137,7 @@ contract DEX {
         tokenB.transferFrom(msg.sender, address(this), y);
 
         uint256 fee = (y * 3) / 1000;
-        feeB += fee;
+        feeB = fee;
         uint256 yAfterFee = y - fee;
 
         uint256 x = (yAfterFee * reserveA) / (reserveB + yAfterFee);

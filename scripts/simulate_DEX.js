@@ -100,8 +100,9 @@ async function simulateDEX() {
         console.log('Initial State:')
         await printBalance(dex)
 
-        const N = 50 + Math.floor(Math.random() * 51) // choose a random N in [50, 100]
+        // const N = 50 + Math.floor(Math.random() * 51) // choose a random N in [50, 100]
         // const N = 6 + Math.floor(Math.random() * 5)
+        const N = 50
 
         // ================== FOR METRICS ========================
         const reserveA_metric = []
@@ -244,18 +245,24 @@ async function simulateDEX() {
 
             // 2.1: swapped_A
             swappedA_metric.push(swapA)
+            swapA = 0 // reset
             // 2.2: swapped B
             swappedB_metric.push(swapB)
+            swapB = 0 // reset
             // 2.3: fees_A
             feesA_metric.push(feeA)
+            feeA = 0 // reset
             // 2.4: fees_B
             feesB_metric.push(feeB)
+            feeB = 0 // reset
             // 3.1: spotPrice
             spotPrice_metric.push(spotPrice)
             // 3.2: Slippage_A
             slippageA_metric.push(slippageA)
+            slippageA = 0
             // 3.3: Slippage_B
             slippageB_metric.push(slippageB)
+            slippageB = 0
 
             // ========== GETTING METRICS end ========
         }

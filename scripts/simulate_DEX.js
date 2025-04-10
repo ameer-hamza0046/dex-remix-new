@@ -129,7 +129,7 @@ async function simulateDEX() {
             const action = ['swap', 'deposit', 'withdraw'][
                 Math.floor(Math.random() * 3)
             ]
-            console.log(`Action (${i+1}/${N}): ${action}!`)
+            console.log(`Action (${i + 1}/${N}): ${action}!`)
             const user =
                 action === 'swap'
                     ? traders[Math.floor(Math.random() * traders.length)]
@@ -179,18 +179,8 @@ async function simulateDEX() {
 
                     // metric end
                     // distribute the fees
-                    console.log('Distributing fees')
-                    const dist_fee_A = (feeA / lPs.length).toFixed(18)
-                    for (let i = 1; i < lPs.length; i++) {
-                        await tokenA.methods
-                            .transfer(lPs[i], toWei(dist_fee_A))
-                            .send({from: deployer})
-                    }
                     console.log(
-                        `[swap]: ${user.slice(
-                            0,
-                            8
-                        )}... swapped ${amt} A -- with Fee: ${dist_fee_A} A to each LP.`
+                        `[swap]: ${user.slice(0, 8)}... swapped ${amt} A.`
                     )
                 } else if (balanceB > 0) {
                     const max = Math.min(balanceB, reserveB / 10)
@@ -216,18 +206,8 @@ async function simulateDEX() {
                     slippageB = slip
                     slippageB_metric.push(slippageB)
                     // metric end
-                    console.log('Distributing fees')
-                    const dist_fee_B = (feeB / lPs.length).toFixed(18)
-                    for (let i = 1; i < lPs.length; i++) {
-                        await tokenB.methods
-                            .transfer(lPs[i], toWei(dist_fee_B))
-                            .send({from: deployer})
-                    }
                     console.log(
-                        `[swap]: ${user.slice(
-                            0,
-                            8
-                        )}... swapped ${amt} B -- with Fee: ${dist_fee_B} B to each LP.`
+                        `[swap]: ${user.slice(0, 8)}... swapped ${amt} B.`
                     )
                 }
             } else if (action === 'deposit') {

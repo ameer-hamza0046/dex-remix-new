@@ -114,7 +114,6 @@ contract DEX {
         // 0.3 % fee
         uint256 fee = (x * 3) / 1000;
         feeA = fee;
-        tokenA.transfer(deployer, feeA);
 
 
         uint256 xAfterFee = x - fee;
@@ -128,7 +127,7 @@ contract DEX {
         require(y > 0 && y < reserveB, "Invalid output amount");
 
         // Update reserves
-        reserveA += xAfterFee;
+        reserveA += x; // we are adding x to the reserve x along with the fees so that the LPs benefit from this fee
         reserveB -= y;
 
         // Send TokenB to the user
@@ -143,7 +142,6 @@ contract DEX {
 
         uint256 fee = (y * 3) / 1000;
         feeB = fee;
-        tokenB.transfer(deployer, feeB);
         uint256 yAfterFee = y - fee;
 
         uint256 x = (yAfterFee * reserveA) / (reserveB + yAfterFee);
@@ -151,7 +149,7 @@ contract DEX {
         require(x > 0 && x < reserveA, "Invalid output amount");
 
         reserveA -= x;
-        reserveB += yAfterFee;
+        reserveB += y; // adding y instead of yAfterFee so that LPs may benefit
         tokenA.transfer(msg.sender, x);
     }
 

@@ -15,6 +15,7 @@ contract DEX {
     uint256 public feeB;
     uint256 public constant FEE_PERCENT = 2;
     uint8 public constant DECIMALS = 18;
+    address public deployer;
 
     constructor(address _tokenA, address _tokenB) {
         tokenA = IERC20(_tokenA);
@@ -24,6 +25,7 @@ contract DEX {
         reserveB = 0;
         feeA = 0;
         feeB = 0;
+        deployer = msg.sender;
     }
 
     function getSpotPrice() external view returns (uint256) {
@@ -61,7 +63,7 @@ contract DEX {
             uint256 ratio2 = (reserveA * 1e18) / reserveB;
             uint256 diff = ratio1 > ratio2 ? ratio1 - ratio2 : ratio2 - ratio1;
 
-            require(diff < 1e15, "Provided amounts must match pool ratio");
+            require(diff < 1e17, "Provided amounts must match pool ratio");
 
             tokenA.transferFrom(msg.sender, address(this), amountA);
             tokenB.transferFrom(msg.sender, address(this), amountB);
@@ -112,6 +114,9 @@ contract DEX {
         // 0.3 % fee
         uint256 fee = (x * 3) / 1000;
         feeA = fee;
+        tokenA.transfer(deployer, feeA);
+
+
         uint256 xAfterFee = x - fee;
         require(x != xAfterFee, "Withdraw amount too small");
         // uint256 xAfterFee = x;
@@ -138,6 +143,7 @@ contract DEX {
 
         uint256 fee = (y * 3) / 1000;
         feeB = fee;
+        tokenB.transfer(deployer, feeB);
         uint256 yAfterFee = y - fee;
 
         uint256 x = (yAfterFee * reserveA) / (reserveB + yAfterFee);

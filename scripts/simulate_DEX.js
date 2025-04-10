@@ -100,9 +100,9 @@ async function simulateDEX() {
         console.log('Initial State:')
         await printBalance(dex)
 
-        // const N = 50 + Math.floor(Math.random() * 51) // choose a random N in [50, 100]
+        const N = 50 + Math.floor(Math.random() * 51) // choose a random N in [50, 100]
         // const N = 6 + Math.floor(Math.random() * 5)
-        const N = 50
+        // const N = 50
 
         // ================== FOR METRICS ========================
         const reserveA_metric = []
@@ -129,14 +129,20 @@ async function simulateDEX() {
             const action = ['swap', 'deposit', 'withdraw'][
                 Math.floor(Math.random() * 3)
             ]
-            console.log(`Action: ${action}!`)
+            console.log(`Action (${i+1}/${N}): ${action}!`)
             const user =
                 action === 'swap'
                     ? traders[Math.floor(Math.random() * traders.length)]
                     : lPs[Math.floor(Math.random() * lPs.length)]
-            const balanceA = fromWei(await tokenA.methods.balanceOf(user).call())
-            const balanceB = fromWei(await tokenB.methods.balanceOf(user).call())
-            const lpBalance = fromWei(await dex.methods.lPTBalanceOf(user).call())
+            const balanceA = fromWei(
+                await tokenA.methods.balanceOf(user).call()
+            )
+            const balanceB = fromWei(
+                await tokenB.methods.balanceOf(user).call()
+            )
+            const lpBalance = fromWei(
+                await dex.methods.lPTBalanceOf(user).call()
+            )
 
             const reserveA = fromWei(await dex.methods.reserveA().call())
             const reserveB = fromWei(await dex.methods.reserveB().call())
@@ -172,8 +178,19 @@ async function simulateDEX() {
                     slippageA = slip
 
                     // metric end
+                    // distribute the fees
+                    console.log('Distributing fees')
+                    const dist_fee_A = (feeA / lPs.length).toFixed(18)
+                    for (let i = 1; i < lPs.length; i++) {
+                        await tokenA.methods
+                            .transfer(lPs[i], toWei(dist_fee_A))
+                            .send({from: deployer})
+                    }
                     console.log(
-                        `[swap]: ${user.slice(0, 8)}... swapped ${amt} A`
+                        `[swap]: ${user.slice(
+                            0,
+                            8
+                        )}... swapped ${amt} A -- with Fee: ${dist_fee_A} A to each LP.`
                     )
                 } else if (balanceB > 0) {
                     const max = Math.min(balanceB, reserveB / 10)
@@ -199,13 +216,23 @@ async function simulateDEX() {
                     slippageB = slip
                     slippageB_metric.push(slippageB)
                     // metric end
+                    console.log('Distributing fees')
+                    const dist_fee_B = (feeB / lPs.length).toFixed(18)
+                    for (let i = 1; i < lPs.length; i++) {
+                        await tokenB.methods
+                            .transfer(lPs[i], toWei(dist_fee_B))
+                            .send({from: deployer})
+                    }
                     console.log(
-                        `[swap]: ${user.slice(0, 8)}... swapped ${amt} B`
+                        `[swap]: ${user.slice(
+                            0,
+                            8
+                        )}... swapped ${amt} B -- with Fee: ${dist_fee_B} B to each LP.`
                     )
                 }
             } else if (action === 'deposit') {
                 const amtA = Math.random() * balanceA
-                const ratioAtoB = fromWei(spotPrice)
+                const ratioAtoB = spotPrice
                 const amtB = amtA / ratioAtoB
                 await dex.methods
                     .deposit(toWei(amtA), toWei(amtB))

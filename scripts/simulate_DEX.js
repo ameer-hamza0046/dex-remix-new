@@ -1,5 +1,6 @@
-const toWei = (val) => web3.utils.toWei(val.toString())
+const toWei = (val) => web3.utils.toWei(val.toFixed(18).toString())
 const fromWei = (val) => parseFloat(web3.utils.fromWei(val.toString()))
+
 async function simulateDEX() {
     try {
         console.log('Starting DEX Simulation...')
@@ -39,42 +40,42 @@ async function simulateDEX() {
         const tokenA = await Token.deploy({
             data: tokenMeta.data.bytecode.object,
             arguments: ['TokenA', 'TKA', toWei(totalBal)],
-        }).send({from: deployer, gas: 5000000})
+        }).send({ from: deployer, gas: 5000000 })
 
         console.log('Deploying TokenB...')
         const tokenB = await Token.deploy({
             data: tokenMeta.data.bytecode.object,
             arguments: ['TokenB', 'TKB', toWei(totalBal)],
-        }).send({from: deployer, gas: 5000000})
+        }).send({ from: deployer, gas: 5000000 })
 
         console.log('Deploying DEX...')
         const dex = await DEX.deploy({
             data: dexMeta.data.bytecode.object,
             arguments: [tokenA.options.address, tokenB.options.address],
-        }).send({from: deployer, gas: 5000000})
+        }).send({ from: deployer, gas: 5000000 })
 
         await tokenA.methods
             .approve(dex.options.address, toWei(totalBal))
-            .send({from: deployer})
+            .send({ from: deployer })
         await tokenB.methods
             .approve(dex.options.address, toWei(totalBal))
-            .send({from: deployer})
+            .send({ from: deployer })
 
         console.log('Distributing tokens to users...')
         const perUser = toWei(perUserBal)
         for (let i = 1; i < users.length; i++) {
             await tokenA.methods
                 .transfer(accounts[i], perUser)
-                .send({from: deployer})
+                .send({ from: deployer })
             await tokenB.methods
                 .transfer(accounts[i], perUser)
-                .send({from: deployer})
+                .send({ from: deployer })
             await tokenA.methods
                 .approve(dex.options.address, toWei(totalBal))
-                .send({from: accounts[i]})
+                .send({ from: accounts[i] })
             await tokenB.methods
                 .approve(dex.options.address, toWei(totalBal))
-                .send({from: accounts[i]})
+                .send({ from: accounts[i] })
         }
 
         console.log('LPs depositing initial liquidity...')
@@ -154,7 +155,7 @@ async function simulateDEX() {
                     const amt = Math.random() * max
                     await dex.methods
                         .swapAforB(toWei(amt))
-                        .send({from: user, gas: 300000})
+                        .send({ from: user, gas: 300000 })
                     // metric ===
                     // new bal
                     const newbalanceA = fromWei(
@@ -187,7 +188,7 @@ async function simulateDEX() {
                     const amt = Math.random() * max
                     await dex.methods
                         .swapBforA(toWei(amt))
-                        .send({from: user, gas: 300000})
+                        .send({ from: user, gas: 300000 })
                     // metric ===
                     swapB = amt
                     const newbalanceA = fromWei(
@@ -216,7 +217,7 @@ async function simulateDEX() {
                 const amtB = amtA / ratioAtoB
                 await dex.methods
                     .deposit(toWei(amtA), toWei(amtB))
-                    .send({from: user, gas: 500000})
+                    .send({ from: user, gas: 500000 })
                 console.log(
                     `[deposit]: ${amtA} A + ${amtB} by ${user.slice(0, 8)}`
                 )
@@ -224,7 +225,7 @@ async function simulateDEX() {
                 const amtLP = Math.random() * lpBalance
                 await dex.methods
                     .withdraw(toWei(amtLP))
-                    .send({from: user, gas: 300000})
+                    .send({ from: user, gas: 300000 })
                 console.log(`[withdraw]: ${amtLP} LPT by ${user.slice(0, 8)}`)
             }
             await printBalance(dex)

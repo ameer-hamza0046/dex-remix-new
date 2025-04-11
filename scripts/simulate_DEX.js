@@ -284,6 +284,26 @@ async function simulateDEX() {
         console.log(`spotPrice_metric ${spotPrice_metric}`)
         console.log(`slippageA_metric ${slippageA_metric}`)
         console.log(`slippageB_metric ${slippageB_metric}`)
+
+        // ===========================================
+        // getting final balances
+        console.log("LPs withdrawing all balance...")
+        for (let i = 0; i < lPs.length; i++) {
+            const bal = await dex.methods.lPTBalanceOf(lPs[i]).call()
+            if (bal > 0) {
+                await dex.methods.withdraw(bal).send({ from: lPs[i], gas: 300000 })
+            }
+        }
+        console.log("Getting final balances...")
+        for (let i = 0; i < users.length; i++) {
+            const balanceA = fromWei(
+                await tokenA.methods.balanceOf(users[i]).call()
+            )
+            const balanceB = fromWei(
+                await tokenB.methods.balanceOf(users[i]).call()
+            )
+            console.log(`${users[i].slice(0, 8)}: ${balanceA} A, ${balanceB} B`)
+        }
     } catch (err) {
         console.error('❌ Error:', err.message)
     }

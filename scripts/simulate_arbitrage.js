@@ -84,6 +84,7 @@ async function simulateArbitrage() {
         console.log('Distributing tokens to users...')
         const perUser = toWei(perUserBal)
         for (let i = 1; i < users.length; i++) {
+            if(users[i] == owner) console.log("This is owner...")
             await tokenA.methods
                 .transfer(accounts[i], perUser)
                 .send({from: deployer})
@@ -106,6 +107,7 @@ async function simulateArbitrage() {
 
         console.log('LPs depositing initial liquidity...')
         for (let i = 0; i < lPs.length; i++) {
+
             let amtA = 150 + Math.floor(Math.random() * 50)
             let ratioAtoB = fromWei(await dex1.methods.getSpotPrice().call())
             amtB =
@@ -141,6 +143,11 @@ async function simulateArbitrage() {
 
         const Arbitrage = new web3.eth.Contract(arbitrageMeta.abi)
 
+        // if spotRatio of dex1 < spotRatio of dex2
+        // swap A for B (dex1) then B for A (dex2)
+        // else
+        // swap B for A (dex1) then B for A (dex2)
+
         console.log('Deploying Arbitrage Contract...')
         const arbitrage = await Arbitrage.deploy({
             data: arbitrageMeta.data.bytecode.object,
@@ -163,24 +170,21 @@ async function simulateArbitrage() {
             )}`
         )
 
+        const amount = 20
         const tokenA_start = fromWei(await tokenA.methods.balanceOf(owner).call())
         const tokenB_start = fromWei(await tokenB.methods.balanceOf(owner).call())
-        const amount = 100
-        await tokenA.methods
-            .approve(arbitrage.options.address, toWei(amount))
-            .send({from: owner})
-        await tokenB.methods
-            .approve(arbitrage.options.address, toWei(amount))
-            .send({from: owner})
-    
-        await arbitrage.methods.executeArbitrage(toWei(amount), true)
+        console.log(`Token A: ${tokenA_start}, Token B: ${tokenB_start}`)
+        await dex2.methods.swapAforB(toWei(amount)).send({ from: owner, gas: 300000 })
+        
+        const tokenA_mid = fromWei(await tokenA.methods.balanceOf(owner).call())
+        const tokenB_mid = fromWei(await tokenB.methods.balanceOf(owner).call())
+        console.log(`Token A: ${tokenA_mid}, Token B: ${tokenB_mid}`)
 
+
+        await dex1.methods.swapBforA(toWei(tokenB_mid - tokenB_start)).send({ from: owner, gas: 300000 })
         const tokenA_end = fromWei(await tokenA.methods.balanceOf(owner).call())
         const tokenB_end = fromWei(await tokenB.methods.balanceOf(owner).call())
-        console.log(`Token A: ${tokenA_start}`)
-        console.log(`Token B: ${tokenB_start}`)
-        console.log(`Token A Profit: ${tokenA_end - tokenA_start}`)
-        console.log(`Token B Profit: ${tokenB_end - tokenB_start}`)
+        console.log(`Token A: ${tokenA_end}, Token B: ${tokenB_end}`)
         console.log("done");
     } catch (err) {
         console.error('Arbitrage Failed:', err.message)

@@ -28,11 +28,12 @@ contract Arbitrage {
         if (directionAtoB) {
             // A -> B on dex1
             IERC20(tokenA).transferFrom(msg.sender, address(this), amountIn);
+            IERC20(tokenA).approve(address(dex1), amountIn);
             dex1.swapAforB(amountIn);
 
             uint256 receivedB = IERC20(tokenB).balanceOf(address(this));
 
-            // B -> A on dex2
+            // // B -> A on dex2
             IERC20(tokenB).approve(address(dex2), receivedB);
             dex2.swapBforA(receivedB);
 

@@ -29,22 +29,37 @@ contract Arbitrage {
 
         uint256 spot1 = dex1.getSpotPrice(); // A/B from dex1
         uint256 spot2 = dex2.getSpotPrice(); // A/B from dex2
-        // uint256 temp;
+        // uint256 temp1;
+        // uint256 temp2;
+        // Calculate profit from A -> B -> A
+        // deduct 0.3 % fees from amountIn
+        // temp1 = amountIn * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+        // // convert to TKB
+        // temp1 = fixedDiv(temp1, spot1);
+        // // deduct 0.3 % fees again
+        // temp1 = temp1 * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+        // // convert to TKA
+        // temp1 = fixedMul(temp1, spot2);
+        // // find the profit
+        // temp1 = temp1 - amountIn;
 
+        // path B -> A -> B
+        // Calculate profit from B -> A -> B
+        // deduct 0.3 % fees from amountIn
+        // temp2 = amountIn * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+        // // convert to TKA
+        // temp2 = fixedMul(temp2, spot1);
+        // // deduct 0.3 % fees again
+        // temp2 = temp2 * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+        // // convert to TKB
+        // temp2 = fixedDiv(temp2, spot2);
+        // // find the profit
+        // temp2 = temp2 - amountIn;
+
+        // if (temp1 < minProfit && temp2 < minProfit) {
+        // //    revert("No profitable arbitrage opportunity");
+        // }
         if(spot1 <= spot2) {
-            // path A -> B -> A
-            // Calculate profit from A -> B -> A
-            // deduct 0.3 % fees from amountIn
-            // temp = amountIn * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
-            // // convert to TKB
-            // temp = fixedDiv(temp, spot1);
-            // // deduct 0.3 % fees again
-            // temp = temp * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
-            // // convert to TKA
-            // temp = fixedMul(temp, spot2);
-            // // find the profit
-            // temp = temp - amountIn;
-            // execute
             tokenA.transferFrom(msg.sender, address(this), amountIn);
             tokenA.approve(address(dex1), amountIn);
             dex1.swapAforB(amountIn);
@@ -57,20 +72,6 @@ contract Arbitrage {
             require(finalA - amountIn > minProfit, "profit > minProfit failed");
             tokenA.transfer(msg.sender, finalA);
         } else {
-            // path B -> A -> B
-            // Calculate profit from B -> A -> B
-            // deduct 0.3 % fees from amountIn
-            // temp = amountIn * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
-            // // convert to TKA
-            // temp = fixedMul(temp, spot1);
-            // // deduct 0.3 % fees again
-            // temp = temp * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
-            // // convert to TKB
-            // temp = fixedDiv(temp, spot2);
-            // // find the profit
-            // temp = temp - amountIn;
-            // require(temp > minProfit, "temp > minProfit failed");
-            // execute
             tokenB.transferFrom(msg.sender, address(this), amountIn);
             tokenB.approve(address(dex1), amountIn);
             dex1.swapBforA(amountIn);

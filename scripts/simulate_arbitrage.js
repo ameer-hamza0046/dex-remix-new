@@ -68,19 +68,15 @@ async function simulateArbitrage() {
 }
 
 async function executeArbitrage(tokenA, tokenB, arbitrage, arb, amt) {
-    let balA, balB;
-    balA = fromWei(await tokenA.methods.balanceOf(arb).call())
-    balB = fromWei(await tokenB.methods.balanceOf(arb).call())
-    console.log(`Initial Balance: ${balA} TKA, ${balB} TKB`)
     try {
         await arbitrage.methods.execute(toWei(amt)).send({from : arb, gas: 5000000});
         console.log("ARBITRAGE SUCCESSFUL!");
     } catch (err) {
-        console.log("ARBITRAGE FAILED!");
+        console.error("ARBITRAGE FAILED!");
     }
     let final_balA = fromWei(await tokenA.methods.balanceOf(arb).call())
     let final_balB = fromWei(await tokenB.methods.balanceOf(arb).call())
-    console.log(`Final Balance: ${final_balA} TKA, ${final_balB} TKB`)
+    console.log(`Balance: ${final_balA} TKA, ${final_balB} TKB`)
 }
 
 async function printSpotPrices(dex1, dex2) {

@@ -13,9 +13,8 @@ contract DEX {
     uint256 public reserveB;
     uint256 public feeA;
     uint256 public feeB;
+    uint256 public constant FEE_PERCENT = 2;
     uint8 public constant DECIMALS = 18;
-    uint256 public constant FEE_NUMERATOR = 3;
-    uint256 public constant FEE_DENOMINATOR = 1000;
     address public deployer;
 
     constructor(address _tokenA, address _tokenB) {
@@ -30,7 +29,6 @@ contract DEX {
     }
 
     function getSpotPrice() external view returns (uint256) {
-        // anyone can call this function for the dex
         if (reserveB == 0) {
             return 0;
         }
@@ -65,7 +63,7 @@ contract DEX {
             uint256 ratio2 = (reserveA * 1e18) / reserveB;
             uint256 diff = ratio1 > ratio2 ? ratio1 - ratio2 : ratio2 - ratio1;
 
-            require(diff < 1e16, "Provided amounts must match pool ratio");
+            require(diff < 1e17, "Provided amounts must match pool ratio");
 
             tokenA.transferFrom(msg.sender, address(this), amountA);
             tokenB.transferFrom(msg.sender, address(this), amountB);
@@ -114,12 +112,13 @@ contract DEX {
         tokenA.transferFrom(msg.sender, address(this), x);
 
         // 0.3 % fee
-        uint256 fee = (x * FEE_NUMERATOR) / FEE_DENOMINATOR;
-        feeA = fee; // saving the fees in a variable to get the information on next function call
+        uint256 fee = (x * 3) / 1000;
+        feeA = fee;
 
 
         uint256 xAfterFee = x - fee;
         require(x != xAfterFee, "Withdraw amount too small");
+        // uint256 xAfterFee = x;
 
         // Calculate output amount y using constant product formula
         // y = reserveB - (k / (reserveA + xAfterFee)) = (xAfterFee * reserveB) / (reserveA + xAfterFee)
@@ -141,7 +140,7 @@ contract DEX {
 
         tokenB.transferFrom(msg.sender, address(this), y);
 
-        uint256 fee = (y * FEE_NUMERATOR) / FEE_DENOMINATOR;
+        uint256 fee = (y * 3) / 1000;
         feeB = fee;
         uint256 yAfterFee = y - fee;
 

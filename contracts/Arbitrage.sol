@@ -8,57 +8,89 @@ contract Arbitrage {
     address public owner;
     DEX public dex1;
     DEX public dex2;
+    IERC20 tokenA;
+    IERC20 tokenB;
 
     uint256 public constant FEE_NUMERATOR = 3; // 0.3% fee
     uint256 public constant FEE_DENOMINATOR = 1000;
-    uint256 public constant MIN_PROFIT = 1e16; // Minimum profit (e.g., 0.01 token)
+    uint256 public constant minProfit = 1e18; // Minimum profit (e.g., 1 token)
+    uint8 public constant DECIMALS = 18;
 
     constructor(address _dex1, address _dex2) {
         owner = msg.sender;
         dex1 = DEX(_dex1);
         dex2 = DEX(_dex2);
+        tokenA = IERC20(address(dex1.tokenA()));
+        tokenB = IERC20(address(dex1.tokenB()));
     }
 
-    function executeArbitrage(uint256 amountIn, bool directionAtoB) external {
-        require(amountIn > 0, "Amount must be > 0");
+    function execute(uint256 amountIn) external {
+        require(amountIn > 0, "Input must be non-zero");
 
-        address tokenA = address(dex1.tokenA());
-        address tokenB = address(dex1.tokenB());
+        uint256 spot1 = dex1.getSpotPrice(); // A/B from dex1
+        uint256 spot2 = dex2.getSpotPrice(); // A/B from dex2
+        // uint256 temp;
 
-        if (directionAtoB) {
-            // A -> B on dex1
-            IERC20(tokenA).transferFrom(msg.sender, address(this), amountIn);
-            IERC20(tokenA).approve(address(dex1), amountIn);
+        if(spot1 <= spot2) {
+            // path A -> B -> A
+            // Calculate profit from A -> B -> A
+            // deduct 0.3 % fees from amountIn
+            // temp = amountIn * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+            // // convert to TKB
+            // temp = fixedDiv(temp, spot1);
+            // // deduct 0.3 % fees again
+            // temp = temp * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+            // // convert to TKA
+            // temp = fixedMul(temp, spot2);
+            // // find the profit
+            // temp = temp - amountIn;
+            // execute
+            tokenA.transferFrom(msg.sender, address(this), amountIn);
+            tokenA.approve(address(dex1), amountIn);
             dex1.swapAforB(amountIn);
 
-            uint256 receivedB = IERC20(tokenB).balanceOf(address(this));
-
-            // // B -> A on dex2
-            IERC20(tokenB).approve(address(dex2), receivedB);
+            uint256 receivedB = tokenB.balanceOf(address(this));
+            tokenB.approve(address(dex2), receivedB);
             dex2.swapBforA(receivedB);
 
-            uint256 finalAmountA = IERC20(tokenA).balanceOf(address(this));
-            uint256 profit = finalAmountA > amountIn ? finalAmountA - amountIn : 0;
-            require(profit > MIN_PROFIT, "No profitable arbitrage");
-
-            IERC20(tokenA).transfer(msg.sender, finalAmountA);
+            uint256 finalA = tokenA.balanceOf(address(this));
+            require(finalA - amountIn > minProfit, "profit > minProfit failed");
+            tokenA.transfer(msg.sender, finalA);
         } else {
-            // B -> A on dex1
-            IERC20(tokenB).transferFrom(msg.sender, address(this), amountIn);
-            IERC20(tokenB).approve(address(dex1), amountIn);
+            // path B -> A -> B
+            // Calculate profit from B -> A -> B
+            // deduct 0.3 % fees from amountIn
+            // temp = amountIn * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+            // // convert to TKA
+            // temp = fixedMul(temp, spot1);
+            // // deduct 0.3 % fees again
+            // temp = temp * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+            // // convert to TKB
+            // temp = fixedDiv(temp, spot2);
+            // // find the profit
+            // temp = temp - amountIn;
+            // require(temp > minProfit, "temp > minProfit failed");
+            // execute
+            tokenB.transferFrom(msg.sender, address(this), amountIn);
+            tokenB.approve(address(dex1), amountIn);
             dex1.swapBforA(amountIn);
 
-            uint256 receivedA = IERC20(tokenA).balanceOf(address(this));
-
-            // A -> B on dex2
-            IERC20(tokenA).approve(address(dex2), receivedA);
+            uint256 receivedA = tokenA.balanceOf(address(this));
+            tokenA.approve(address(dex2), receivedA);
             dex2.swapAforB(receivedA);
 
-            uint256 finalAmountB = IERC20(tokenB).balanceOf(address(this));
-            uint256 profit = finalAmountB > amountIn ? finalAmountB - amountIn : 0;
-            require(profit > MIN_PROFIT, "No profitable arbitrage");
-
-            IERC20(tokenB).transfer(msg.sender, finalAmountB);
+            uint256 finalB = tokenB.balanceOf(address(this));
+            require(finalB - amountIn > minProfit, "profit > minProfit failed");
+            tokenB.transfer(msg.sender, finalB);
         }
+    }
+
+    function fixedDiv(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b > 0, "Division by zero");
+        return (a * 10**DECIMALS) / b;
+    }
+
+    function fixedMul(uint256 x, uint256 y) internal pure returns (uint256) {
+        return (x * y) / 10**DECIMALS;
     }
 }

@@ -3,229 +3,93 @@ const fromWei = (val) => parseFloat(web3.utils.fromWei(val.toString()))
 
 async function simulateArbitrage() {
     try {
-        console.log('Starting DEX Simulation...')
+        console.log('Starting Arbitrage Simulation...')
 
         const accounts = await web3.eth.getAccounts()
         const deployer = accounts[0]
-        // defining lPs, traders etc
-        const lPs = accounts.slice(0, 5)
-        const traders = accounts.slice(5, 13)
-        const users = lPs.concat(traders)
-
-        const owner = traders[0]
+        const arb = accounts[1]
+        const users = [deployer, arb]
 
         // initial balance
         const perUserBal = 1000
         const totalBal = users.length * perUserBal
 
         // Load ABIs
-        const tokenMeta = JSON.parse(
-            await remix.call(
-                'fileManager',
-                'getFile',
-                'browser/contracts/artifacts/Token.json'
-            )
-        )
-        const dexMeta = JSON.parse(
-            await remix.call(
-                'fileManager',
-                'getFile',
-                'browser/contracts/artifacts/DEX.json'
-            )
-        )
-        const arbitrageMeta = JSON.parse(
-            await remix.call(
-                'fileManager',
-                'getFile',
-                'browser/contracts/artifacts/Arbitrage.json'
-            )
-        )
+        const tokenMeta = JSON.parse(await remix.call('fileManager','getFile','browser/contracts/artifacts/Token.json'))
+        const dexMeta = JSON.parse(await remix.call('fileManager','getFile','browser/contracts/artifacts/DEX.json'))
+        const arbitrageMeta = JSON.parse(await remix.call('fileManager','getFile','browser/contracts/artifacts/Arbitrage.json'))
+
+        // Classes
         const Token = new web3.eth.Contract(tokenMeta.abi)
         const DEX = new web3.eth.Contract(dexMeta.abi)
         const Arbitrage = new web3.eth.Contract(arbitrageMeta.abi)
 
-        console.log('Deploying TokenA...')
-        const tokenA = await Token.deploy({
-            data: tokenMeta.data.bytecode.object,
-            arguments: ['TokenA', 'TKA', toWei(totalBal)],
-        }).send({ from: deployer, gas: 5000000 })
+        console.log('Deploying TokenA and TokenB...')
+        const tokenA = await Token.deploy({data: tokenMeta.data.bytecode.object,arguments: ['TokenA', 'TKA', toWei(totalBal)],}).send({ from: deployer, gas: 5000000 })
+        const tokenB = await Token.deploy({data: tokenMeta.data.bytecode.object,arguments: ['TokenB', 'TKB', toWei(totalBal)],}).send({ from: deployer, gas: 5000000 })
 
-        console.log('Deploying TokenB...')
-        const tokenB = await Token.deploy({
-            data: tokenMeta.data.bytecode.object,
-            arguments: ['TokenB', 'TKB', toWei(totalBal)],
-        }).send({ from: deployer, gas: 5000000 })
+        console.log('Deploying dex1 and dex2...')
+        const dex1 = await DEX.deploy({data: dexMeta.data.bytecode.object,arguments: [tokenA.options.address, tokenB.options.address],}).send({ from: deployer, gas: 5000000 })
+        const dex2 = await DEX.deploy({data: dexMeta.data.bytecode.object,arguments: [tokenA.options.address, tokenB.options.address],}).send({ from: deployer, gas: 5000000 })
 
-        console.log('Deploying dex1...')
-        const dex1 = await DEX.deploy({
-            data: dexMeta.data.bytecode.object,
-            arguments: [tokenA.options.address, tokenB.options.address],
-        }).send({ from: deployer, gas: 5000000 })
-
-        console.log('Deploying dex2...')
-        const dex2 = await DEX.deploy({
-            data: dexMeta.data.bytecode.object,
-            arguments: [tokenA.options.address, tokenB.options.address],
-        }).send({ from: deployer, gas: 5000000 })
-
-        console.log('Deploying Arbitrage Contract...')
-        const arbitrage = await Arbitrage.deploy({
-            data: arbitrageMeta.data.bytecode.object,
-            arguments: [dex1.options.address, dex2.options.address],
-        }).send({ from: owner, gas: 5000000 })
+        console.log('Deploying arbitrage...')
+        const arbitrage = await Arbitrage.deploy({data: arbitrageMeta.data.bytecode.object,arguments: [dex1.options.address, dex2.options.address],}).send({ from: deployer, gas: 5000000 })
 
         console.log('Approving dex1, dex2 and arbitrage...')
-        await tokenA.methods
-            .approve(dex1.options.address, toWei(totalBal))
-            .send({ from: deployer })
-        await tokenB.methods
-            .approve(dex1.options.address, toWei(totalBal))
-            .send({ from: deployer })
-        await tokenA.methods
-            .approve(dex2.options.address, toWei(totalBal))
-            .send({ from: deployer })
-        await tokenB.methods
-            .approve(dex2.options.address, toWei(totalBal))
-            .send({ from: deployer })
-        await tokenA.methods
-            .approve(arbitrage.options.address, toWei(totalBal))
-            .send({ from: deployer })
-        await tokenB.methods
-            .approve(arbitrage.options.address, toWei(totalBal))
-            .send({ from: deployer })
+        await tokenA.methods.approve(dex1.options.address, toWei(totalBal)).send({ from: deployer })
+        await tokenA.methods.approve(dex2.options.address, toWei(totalBal)).send({ from: deployer })
+        await tokenA.methods.approve(arbitrage.options.address, toWei(totalBal)).send({ from: arb })
 
-        console.log('Distributing tokens to users...')
-        const perUser = toWei(perUserBal)
-        for (let i = 1; i < users.length; i++) {
-            if (users[i] == owner) console.log('This is owner...')
-            await tokenA.methods
-                .transfer(accounts[i], perUser)
-                .send({ from: deployer })
-            await tokenB.methods
-                .transfer(accounts[i], perUser)
-                .send({ from: deployer })
-            await tokenA.methods
-                .approve(dex1.options.address, toWei(totalBal))
-                .send({ from: accounts[i] })
-            await tokenB.methods
-                .approve(dex1.options.address, toWei(totalBal))
-                .send({ from: accounts[i] })
-            await tokenA.methods
-                .approve(dex2.options.address, toWei(totalBal))
-                .send({ from: accounts[i] })
-            await tokenB.methods
-                .approve(dex2.options.address, toWei(totalBal))
-                .send({ from: accounts[i] })
-            await tokenA.methods
-                .approve(arbitrage.options.address, toWei(totalBal))
-                .send({ from: accounts[i] })
-            await tokenB.methods
-                .approve(arbitrage.options.address, toWei(totalBal))
-                .send({ from: accounts[i] })
+        await tokenB.methods.approve(dex1.options.address, toWei(totalBal)).send({ from: deployer })
+        await tokenB.methods.approve(dex2.options.address, toWei(totalBal)).send({ from: deployer })
+        await tokenB.methods.approve(arbitrage.options.address, toWei(totalBal)).send({ from: arb })
+
+        console.log('Giving 1000 TKA and 1000 TKB to arb...')
+        await tokenA.methods.transfer(arb, toWei(perUserBal)).send({ from: deployer })
+        await tokenB.methods.transfer(arb, toWei(perUserBal)).send({ from: deployer })
+
+        const deps = [400, 300, 350, 500]
+        console.log('Deployer depositing for initial liquidity...')
+        console.log(`Depositing ${deps[0]} TKA and ${deps[1]} TKB in DEX-1`)
+        await dex1.methods.deposit(toWei(deps[0]), toWei(deps[1])).send({from: deployer, gas: 5000000,})
+        console.log(`Depositing ${deps[2]} TKA and ${deps[3]} TKB in DEX-2`)
+        await dex2.methods.deposit(toWei(deps[2]), toWei(deps[3])).send({from: deployer, gas: 5000000,})
+
+        const amnts = [20, 2, 150, 50];
+        for(let i=0; i<amnts.length; i++) {
+            console.log(`Executing arbitrage${i+1}...`)
+            await printSpotPrices(dex1, dex2);
+            await executeArbitrage(tokenA, tokenB, arbitrage, arb, amnts[i]);
         }
-
-        console.log('LPs depositing initial liquidity...')
-        for (let i = 0; i < lPs.length; i++) {
-            let amtA = 150 + Math.floor(Math.random() * 50)
-            let ratioAtoB = fromWei(await dex1.methods.getSpotPrice().call())
-            amtB =
-                ratioAtoB !== 0
-                    ? amtA / ratioAtoB
-                    : 100 + Math.floor(Math.random() * 50)
-
-            console.log(
-                `[DEX-1][LP${i}: Deposit] ${amtA} A: Spot ${ratioAtoB} --> ${amtB} B`
-            )
-
-            await dex1.methods.deposit(toWei(amtA), toWei(amtB)).send({
-                from: lPs[i],
-                gas: 5000000,
-            })
-            ////////////////////////////////////////////////
-            amtA = 100 + Math.floor(Math.random() * 50)
-            ratioAtoB = fromWei(await dex2.methods.getSpotPrice().call())
-            amtB =
-                ratioAtoB !== 0
-                    ? amtA / ratioAtoB
-                    : 150 + Math.floor(Math.random() * 50)
-
-            console.log(
-                `[DEX-2][LP${i}: Deposit] ${amtA} A: Spot ${ratioAtoB} --> ${amtB} B`
-            )
-
-            await dex2.methods.deposit(toWei(amtA), toWei(amtB)).send({
-                from: lPs[i],
-                gas: 5000000,
-            })
-        }
-
-        // if spotRatio of dex1 < spotRatio of dex2
-        // swap A for B (dex1) then B for A (dex2)
-        // else
-        // swap B for A (dex1) then B for A (dex2)
-
-        console.log('DEX-1 and DEX-2 approving arbitrage...')
-
-        console.log(
-            `Arbitrage Contract deployed at: ${arbitrage.options.address}`
-        )
-        console.log('Setup Done!\n')
-
-        console.log(
-            `[dex-1] SpotPrice: ${fromWei(
-                await dex1.methods.getSpotPrice().call()
-            )}`
-        )
-        console.log(
-            `[dex-2] SpotPrice: ${fromWei(
-                await dex2.methods.getSpotPrice().call()
-            )}`
-        )
-
-        const amount = 20
-        const tokenA_start = fromWei(
-            await tokenA.methods.balanceOf(owner).call()
-        )
-        const tokenB_start = fromWei(
-            await tokenB.methods.balanceOf(owner).call()
-        )
-        console.log(`Token A: ${tokenA_start}, Token B: ${tokenB_start}`)
-        await dex1.methods
-            .swapBforA(toWei(amount))
-            .send({ from: owner, gas: 5000000 })
-
-        const tokenA_mid = fromWei(await tokenA.methods.balanceOf(owner).call())
-        const tokenB_mid = fromWei(await tokenB.methods.balanceOf(owner).call())
-        console.log(`Token A: ${tokenA_mid}, Token B: ${tokenB_mid}`)
-
-        await dex2.methods
-            .swapAforB(toWei(tokenA_mid - tokenA_start))
-            .send({ from: owner, gas: 5000000 })
-        const tokenA_end = fromWei(await tokenA.methods.balanceOf(owner).call())
-        const tokenB_end = fromWei(await tokenB.methods.balanceOf(owner).call())
-        console.log(`Token A: ${tokenA_end}, Token B: ${tokenB_end}`)
-
-        console.log(
-            `[dex-1] SpotPrice: ${fromWei(
-                await dex1.methods.getSpotPrice().call()
-            )}`
-        )
-        console.log(
-            `[dex-2] SpotPrice: ${fromWei(
-                await dex2.methods.getSpotPrice().call()
-            )}`
-        )
-
-        await arbitrage.methods
-            .executeArbitrage(toWei(amount), false)
-            .send({ from: owner, gas: 5000000 })
-        const tokenA_f = fromWei(await tokenA.methods.balanceOf(owner).call())
-        const tokenB_f = fromWei(await tokenB.methods.balanceOf(owner).call())
-        console.log(`Token A: ${tokenA_f}, Token B: ${tokenB_f}`)
-        console.log('done')
+        console.log('======= The End =======')
     } catch (err) {
         console.error('Arbitrage Failed:', err.message)
     }
 }
 
+async function executeArbitrage(tokenA, tokenB, arbitrage, arb, amt) {
+    let balA, balB;
+    balA = fromWei(await tokenA.methods.balanceOf(arb).call())
+    balB = fromWei(await tokenB.methods.balanceOf(arb).call())
+    console.log(`Initial Balance: ${balA} TKA, ${balB} TKB`)
+    try {
+        await arbitrage.methods.execute(toWei(amt)).send({from : arb, gas: 5000000});
+        console.log("ARBITRAGE SUCCESSFUL!");
+    } catch (err) {
+        console.log("ARBITRAGE FAILED!");
+    }
+    let final_balA = fromWei(await tokenA.methods.balanceOf(arb).call())
+    let final_balB = fromWei(await tokenB.methods.balanceOf(arb).call())
+    console.log(`Final Balance: ${final_balA} TKA, ${final_balB} TKB`)
+}
+
+async function printSpotPrices(dex1, dex2) {
+    const spot1 = fromWei(await dex1.methods.getSpotPrice().call());
+    const spot2 = fromWei(await dex2.methods.getSpotPrice().call());
+
+    console.log(`[DEX-1] Spot Price (A/B): ${spot1}`);
+    console.log(`[DEX-2] Spot Price (A/B): ${spot2}`);
+}
+
 simulateArbitrage()
+

@@ -9,7 +9,7 @@ contract Arbitrage {
     DEX public dex1;
     DEX public dex2;
 
-    uint256 public constant FEE_PERCENT = 3; // 0.3% fee
+    uint256 public constant FEE_NUMERATOR = 3; // 0.3% fee
     uint256 public constant FEE_DENOMINATOR = 1000;
     uint256 public constant MIN_PROFIT = 1e16; // Minimum profit (e.g., 0.01 token)
 

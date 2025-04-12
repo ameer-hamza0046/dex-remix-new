@@ -27,39 +27,22 @@ contract Arbitrage {
     function execute(uint256 amountIn) external {
         require(amountIn > 0, "Input must be non-zero");
 
-        uint256 spot1 = dex1.getSpotPrice(); // A/B from dex1
-        uint256 spot2 = dex2.getSpotPrice(); // A/B from dex2
-        // uint256 temp1;
-        // uint256 temp2;
-        // Calculate profit from A -> B -> A
-        // deduct 0.3 % fees from amountIn
-        // temp1 = amountIn * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
-        // // convert to TKB
-        // temp1 = fixedDiv(temp1, spot1);
-        // // deduct 0.3 % fees again
-        // temp1 = temp1 * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
-        // // convert to TKA
-        // temp1 = fixedMul(temp1, spot2);
-        // // find the profit
-        // temp1 = temp1 - amountIn;
+        // uint256 spot1 = dex1.getSpotPrice(); // A/B from dex1
+        // uint256 spot2 = dex2.getSpotPrice(); // A/B from dex2
+        // Get reserves
+        (uint256 resA1, uint256 resB1) = (dex1.reserveA(), dex1.reserveB());
+        (uint256 resA2, uint256 resB2) = (dex2.reserveA(), dex2.reserveB());
 
-        // path B -> A -> B
-        // Calculate profit from B -> A -> B
-        // deduct 0.3 % fees from amountIn
-        // temp2 = amountIn * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
-        // // convert to TKA
-        // temp2 = fixedMul(temp2, spot1);
-        // // deduct 0.3 % fees again
-        // temp2 = temp2 * (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
-        // // convert to TKB
-        // temp2 = fixedDiv(temp2, spot2);
-        // // find the profit
-        // temp2 = temp2 - amountIn;
+        // A -> B on dex1 → B -> A on dex2
+        uint256 temp1 = getAmountOut(amountIn, resA1, resB1);
+        temp1 = getAmountOut(temp1, resB2, resA2);
 
-        // if (temp1 < minProfit && temp2 < minProfit) {
-        // //    revert("No profitable arbitrage opportunity");
-        // }
-        if(spot1 <= spot2) {
+        // B -> A on dex1 → A -> B on dex2
+        uint256 temp2 = getAmountOut(amountIn, resB1, resA1);
+        temp2 = getAmountOut(temp2, resA2, resB2);
+
+        require(temp1 > minProfit || temp2 > minProfit, "Profit > minProfit failed");
+        if(temp1 > temp2) {
             tokenA.transferFrom(msg.sender, address(this), amountIn);
             tokenA.approve(address(dex1), amountIn);
             dex1.swapAforB(amountIn);
@@ -93,5 +76,19 @@ contract Arbitrage {
 
     function fixedMul(uint256 x, uint256 y) internal pure returns (uint256) {
         return (x * y) / 10**DECIMALS;
+    }
+
+    function getAmountOut(
+        uint256 amountIn,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) internal pure returns (uint256) {
+        require(reserveIn > 0 && reserveOut > 0, "Invalid reserves");
+        uint256 fee = (amountIn * 3) / 1000;
+        uint256 xAfterFee = amountIn - fee;
+        // Calculate output amount y using constant product formula
+        // y = reserveB - (k / (reserveA + xAfterFee)) = (xAfterFee * reserveB) / (reserveA + xAfterFee)
+        uint256 y = (xAfterFee * reserveOut) / (reserveIn + xAfterFee);
+        return y;
     }
 }

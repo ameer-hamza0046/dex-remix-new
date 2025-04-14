@@ -212,7 +212,10 @@ async function simulateDEX() {
                     )
                 }
             } else if (action === 'deposit') {
-                const amtA = Math.random() * balanceA
+                let amtA = Math.random() * balanceA
+                while (amtA < 1) {
+                    amtA = Math.random() * balanceA;
+                }
                 const ratioAtoB = spotPrice
                 const amtB = amtA / ratioAtoB
                 await dex.methods
@@ -222,7 +225,10 @@ async function simulateDEX() {
                     `[deposit]: ${amtA} A + ${amtB} by ${user.slice(0, 8)}`
                 )
             } else {
-                const amtLP = Math.random() * lpBalance
+                let amtLP = Math.random() * lpBalance
+                while(amtLP < 1) {
+                    amtLP = Math.random() * lpBalance
+                }
                 await dex.methods
                     .withdraw(toWei(amtLP))
                     .send({ from: user, gas: 300000 })

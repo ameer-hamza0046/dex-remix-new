@@ -3,8 +3,7 @@ const fromWei = (val) => parseFloat(web3.utils.fromWei(val.toString()))
 
 async function simulateDEX() {
     try {
-        console.log('Starting DEX Simulation...')
-
+        // getting accounts
         const accounts = await web3.eth.getAccounts()
         const deployer = accounts[0]
 
@@ -36,46 +35,44 @@ async function simulateDEX() {
         const Token = new web3.eth.Contract(tokenMeta.abi)
         const DEX = new web3.eth.Contract(dexMeta.abi)
 
-        console.log('Deploying TokenA...')
+        console.log('Deploying TokenA, TokenB, DEX...')
         const tokenA = await Token.deploy({
             data: tokenMeta.data.bytecode.object,
             arguments: ['TokenA', 'TKA', toWei(totalBal)],
-        }).send({ from: deployer, gas: 5000000 })
+        }).send({from: deployer, gas: 5000000})
 
-        console.log('Deploying TokenB...')
         const tokenB = await Token.deploy({
             data: tokenMeta.data.bytecode.object,
             arguments: ['TokenB', 'TKB', toWei(totalBal)],
-        }).send({ from: deployer, gas: 5000000 })
+        }).send({from: deployer, gas: 5000000})
 
-        console.log('Deploying DEX...')
         const dex = await DEX.deploy({
             data: dexMeta.data.bytecode.object,
             arguments: [tokenA.options.address, tokenB.options.address],
-        }).send({ from: deployer, gas: 5000000 })
+        }).send({from: deployer, gas: 5000000})
 
         await tokenA.methods
             .approve(dex.options.address, toWei(totalBal))
-            .send({ from: deployer })
+            .send({from: deployer})
         await tokenB.methods
             .approve(dex.options.address, toWei(totalBal))
-            .send({ from: deployer })
+            .send({from: deployer})
 
         console.log('Distributing tokens to users...')
         const perUser = toWei(perUserBal)
         for (let i = 1; i < users.length; i++) {
             await tokenA.methods
                 .transfer(accounts[i], perUser)
-                .send({ from: deployer })
+                .send({from: deployer})
             await tokenB.methods
                 .transfer(accounts[i], perUser)
-                .send({ from: deployer })
+                .send({from: deployer})
             await tokenA.methods
                 .approve(dex.options.address, toWei(totalBal))
-                .send({ from: accounts[i] })
+                .send({from: accounts[i]})
             await tokenB.methods
                 .approve(dex.options.address, toWei(totalBal))
-                .send({ from: accounts[i] })
+                .send({from: accounts[i]})
         }
 
         console.log('LPs depositing initial liquidity...')
@@ -102,8 +99,6 @@ async function simulateDEX() {
         await printBalance(dex)
 
         const N = 50 + Math.floor(Math.random() * 51) // choose a random N in [50, 100]
-        // const N = 6 + Math.floor(Math.random() * 5)
-        // const N = 50
 
         // ================== FOR METRICS ========================
         const reserveA_metric = []
@@ -155,9 +150,8 @@ async function simulateDEX() {
                     const amt = Math.random() * max
                     await dex.methods
                         .swapAforB(toWei(amt))
-                        .send({ from: user, gas: 300000 })
+                        .send({from: user, gas: 300000})
                     // metric ===
-                    // new bal
                     const newbalanceA = fromWei(
                         await tokenA.methods.balanceOf(user).call()
                     )
@@ -165,7 +159,6 @@ async function simulateDEX() {
                         await tokenB.methods.balanceOf(user).call()
                     )
                     const fee = fromWei(await dex.methods.feeA().call())
-                    console.log(`Amount, fee: ${amt}, ${fee}`)
                     feeA = fee
                     swapA = amt
 
@@ -173,11 +166,10 @@ async function simulateDEX() {
                     const actualOut = newbalanceB - balanceB
 
                     const alpha = actualOut / amt // (token Y received) / (token X deposited)
-                    const beta = balanceB / balanceA // (token Y before swap) / (token X before swap)
+                    const beta = reserveB / reserveA // (token Y before swap) / (token X before swap)
 
                     const slip = ((alpha - beta) / beta) * 100
                     slippageA = slip
-
                     // metric end
                     // distribute the fees
                     console.log(
@@ -188,7 +180,7 @@ async function simulateDEX() {
                     const amt = Math.random() * max
                     await dex.methods
                         .swapBforA(toWei(amt))
-                        .send({ from: user, gas: 300000 })
+                        .send({from: user, gas: 300000})
                     // metric ===
                     swapB = amt
                     const newbalanceA = fromWei(
@@ -198,11 +190,10 @@ async function simulateDEX() {
                         await tokenB.methods.balanceOf(user).call()
                     )
                     const fee = fromWei(await dex.methods.feeB().call())
-                    console.log(`Amount, fee: ${amt}, ${fee}`)
                     feeB = fee
                     const actualOut = newbalanceA - balanceA
                     const alpha = actualOut / amt
-                    const beta = balanceA / balanceB
+                    const beta = reserveA / reserveB
                     const slip = ((alpha - beta) / beta) * 100
                     slippageB = slip
                     slippageB_metric.push(slippageB)
@@ -214,24 +205,24 @@ async function simulateDEX() {
             } else if (action === 'deposit') {
                 let amtA = Math.random() * balanceA
                 while (amtA < 1) {
-                    amtA = Math.random() * balanceA;
+                    amtA = Math.random() * balanceA
                 }
                 const ratioAtoB = spotPrice
                 const amtB = amtA / ratioAtoB
                 await dex.methods
                     .deposit(toWei(amtA), toWei(amtB))
-                    .send({ from: user, gas: 500000 })
+                    .send({from: user, gas: 500000})
                 console.log(
                     `[deposit]: ${amtA} A + ${amtB} by ${user.slice(0, 8)}`
                 )
             } else {
                 let amtLP = Math.random() * lpBalance
-                while(amtLP < 1) {
+                while (amtLP < 1) {
                     amtLP = Math.random() * lpBalance
                 }
                 await dex.methods
                     .withdraw(toWei(amtLP))
-                    .send({ from: user, gas: 300000 })
+                    .send({from: user, gas: 300000})
                 console.log(`[withdraw]: ${amtLP} LPT by ${user.slice(0, 8)}`)
             }
             await printBalance(dex)

@@ -41,7 +41,7 @@ contract Arbitrage {
         uint256 temp2 = getAmountOut(amountIn, resB1, resA1);
         temp2 = getAmountOut(temp2, resA2, resB2);
 
-        require(temp1 > amountIn * 5 / 10000 || temp2 > amountIn * 5 / 10000, "Profit > minProfit failed");
+        require(temp1 > minProfit || temp2 > minProfit, "Profit > minProfit failed");
         if(temp1 > temp2) {
             tokenA.transferFrom(msg.sender, address(this), amountIn);
             tokenA.approve(address(dex1), amountIn);

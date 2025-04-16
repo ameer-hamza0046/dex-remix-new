@@ -101,22 +101,31 @@ async function simulateDEX() {
         const N = 50 + Math.floor(Math.random() * 51) // choose a random N in [50, 100]
 
         // ================== FOR METRICS ========================
-        const reserveA_metric = []
-        const reserveB_metric = []
-        const tvl_metric = []
-        const reserveRatio_metric = []
+        let A = fromWei(await dex.methods.reserveA().call())
+        let B = fromWei(await dex.methods.reserveB().call())
+        let S = fromWei(await dex.methods.getSpotPrice().call())
+        const reserveA_metric = [A]
+        const reserveB_metric = [B]
+        const tvl_metric = [A + B * S]
+        const reserveRatio_metric = [S]
         const lp_balance_metric = [[], [], [], [], []]
-        const swappedA_metric = []
-        const swappedB_metric = []
+        for (let i = 0; i < lPs.length; i++) {
+            const bal = fromWei(
+                await dex.methods.lPTBalanceOf(lPs[i]).call()
+            )
+            lp_balance_metric[i].push(bal)
+        }
+        const swappedA_metric = [0]
+        const swappedB_metric = [0]
         let swapA = 0,
             swapB = 0
-        const feesA_metric = []
-        const feesB_metric = []
+        const feesA_metric = [0]
+        const feesB_metric = [0]
         let feeA = 0,
             feeB = 0
-        const spotPrice_metric = []
-        const slippageA_metric = []
-        const slippageB_metric = []
+        const spotPrice_metric = [S]
+        const slippageA_metric = [0]
+        const slippageB_metric = [0]
         let slippageA = 0,
             slippageB = 0
         // ================== FOR METRICS end ====================

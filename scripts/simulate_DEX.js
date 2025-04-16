@@ -39,40 +39,40 @@ async function simulateDEX() {
         const tokenA = await Token.deploy({
             data: tokenMeta.data.bytecode.object,
             arguments: ['TokenA', 'TKA', toWei(totalBal)],
-        }).send({from: deployer, gas: 5000000})
+        }).send({ from: deployer, gas: 5000000 })
 
         const tokenB = await Token.deploy({
             data: tokenMeta.data.bytecode.object,
             arguments: ['TokenB', 'TKB', toWei(totalBal)],
-        }).send({from: deployer, gas: 5000000})
+        }).send({ from: deployer, gas: 5000000 })
 
         const dex = await DEX.deploy({
             data: dexMeta.data.bytecode.object,
             arguments: [tokenA.options.address, tokenB.options.address],
-        }).send({from: deployer, gas: 5000000})
+        }).send({ from: deployer, gas: 5000000 })
 
         await tokenA.methods
             .approve(dex.options.address, toWei(totalBal))
-            .send({from: deployer})
+            .send({ from: deployer })
         await tokenB.methods
             .approve(dex.options.address, toWei(totalBal))
-            .send({from: deployer})
+            .send({ from: deployer })
 
         console.log('Distributing tokens to users...')
         const perUser = toWei(perUserBal)
         for (let i = 1; i < users.length; i++) {
             await tokenA.methods
                 .transfer(accounts[i], perUser)
-                .send({from: deployer})
+                .send({ from: deployer })
             await tokenB.methods
                 .transfer(accounts[i], perUser)
-                .send({from: deployer})
+                .send({ from: deployer })
             await tokenA.methods
                 .approve(dex.options.address, toWei(totalBal))
-                .send({from: accounts[i]})
+                .send({ from: accounts[i] })
             await tokenB.methods
                 .approve(dex.options.address, toWei(totalBal))
-                .send({from: accounts[i]})
+                .send({ from: accounts[i] })
         }
 
         console.log('LPs depositing initial liquidity...')
@@ -151,62 +151,71 @@ async function simulateDEX() {
                     while (amt < 1) {
                         amt = Math.random() * max
                     }
-                    await dex.methods
-                        .swapAforB(toWei(amt))
-                        .send({from: user, gas: 300000})
-                    // metric ===
-                    const newbalanceA = fromWei(
-                        await tokenA.methods.balanceOf(user).call()
-                    )
-                    const newbalanceB = fromWei(
-                        await tokenB.methods.balanceOf(user).call()
-                    )
-                    const fee = fromWei(await dex.methods.feeA().call())
-                    feeA = fee
-                    swapA = amt
+                    try {
+                        await dex.methods
+                            .swapAforB(toWei(amt))
+                            .send({ from: user, gas: 300000 })
+                        // metric ===
+                        const newbalanceA = fromWei(
+                            await tokenA.methods.balanceOf(user).call()
+                        )
+                        const newbalanceB = fromWei(
+                            await tokenB.methods.balanceOf(user).call()
+                        )
+                        const fee = fromWei(await dex.methods.feeA().call())
+                        feeA = fee
+                        swapA = amt
 
-                    const expectedOut = amt / spotPrice
-                    const actualOut = newbalanceB - balanceB
+                        const expectedOut = amt / spotPrice
+                        const actualOut = newbalanceB - balanceB
 
-                    const alpha = actualOut / amt // (token Y received) / (token X deposited)
-                    const beta = reserveB / reserveA // (token Y before swap) / (token X before swap)
+                        const alpha = actualOut / amt // (token Y received) / (token X deposited)
+                        const beta = reserveB / reserveA // (token Y before swap) / (token X before swap)
 
-                    const slip = ((alpha - beta) / beta) * 100
-                    slippageA = slip
-                    // metric end
-                    // distribute the fees
-                    console.log(
-                        `[swap]: ${user.slice(0, 8)}... swapped ${amt} A.`
-                    )
+                        const slip = ((alpha - beta) / beta) * 100
+                        slippageA = slip
+                        // metric end
+                        // distribute the fees
+                        console.log(
+                            `[swap]: ${user.slice(0, 8)}... swapped ${amt} A.`
+                        )
+                    } catch (err) {
+                        console.log(`Swap failed!!!`)
+                    }
                 } else if (balanceB > 0) {
                     const max = Math.min(balanceB, reserveB / 10)
                     let amt = Math.random() * max
                     while (amt < 1) {
                         amt = Math.random() * max
                     }
-                    await dex.methods
-                        .swapBforA(toWei(amt))
-                        .send({from: user, gas: 300000})
-                    // metric ===
-                    swapB = amt
-                    const newbalanceA = fromWei(
-                        await tokenA.methods.balanceOf(user).call()
-                    )
-                    const newbalanceB = fromWei(
-                        await tokenB.methods.balanceOf(user).call()
-                    )
-                    const fee = fromWei(await dex.methods.feeB().call())
-                    feeB = fee
-                    const actualOut = newbalanceA - balanceA
-                    const alpha = actualOut / amt
-                    const beta = reserveA / reserveB
-                    const slip = ((alpha - beta) / beta) * 100
-                    slippageB = slip
-                    slippageB_metric.push(slippageB)
-                    // metric end
-                    console.log(
-                        `[swap]: ${user.slice(0, 8)}... swapped ${amt} B.`
-                    )
+                    try {
+
+                        await dex.methods
+                            .swapBforA(toWei(amt))
+                            .send({ from: user, gas: 300000 })
+                        // metric ===
+                        swapB = amt
+                        const newbalanceA = fromWei(
+                            await tokenA.methods.balanceOf(user).call()
+                        )
+                        const newbalanceB = fromWei(
+                            await tokenB.methods.balanceOf(user).call()
+                        )
+                        const fee = fromWei(await dex.methods.feeB().call())
+                        feeB = fee
+                        const actualOut = newbalanceA - balanceA
+                        const alpha = actualOut / amt
+                        const beta = reserveA / reserveB
+                        const slip = ((alpha - beta) / beta) * 100
+                        slippageB = slip
+                        slippageB_metric.push(slippageB)
+                        // metric end
+                        console.log(
+                            `[swap]: ${user.slice(0, 8)}... swapped ${amt} B.`
+                        )
+                    } catch (err) {
+                        console.log("Swap failed!!!");
+                    }
                 }
             } else if (action === 'deposit') {
                 let amtA = Math.random() * balanceA
@@ -215,21 +224,29 @@ async function simulateDEX() {
                 }
                 const ratioAtoB = spotPrice
                 const amtB = amtA / ratioAtoB
-                await dex.methods
-                    .deposit(toWei(amtA), toWei(amtB))
-                    .send({from: user, gas: 500000})
-                console.log(
-                    `[deposit]: ${amtA} A + ${amtB} by ${user.slice(0, 8)}`
-                )
+                try {
+                    await dex.methods
+                        .deposit(toWei(amtA), toWei(amtB))
+                        .send({ from: user, gas: 500000 })
+                    console.log(
+                        `[deposit]: ${amtA} A + ${amtB} by ${user.slice(0, 8)}`
+                    )
+                } catch (err) {
+                    console.log("Deposit Failed!!!");
+                }
             } else {
                 let amtLP = Math.random() * lpBalance
                 while (amtLP < 1) {
                     amtLP = Math.random() * lpBalance
                 }
-                await dex.methods
-                    .withdraw(toWei(amtLP))
-                    .send({from: user, gas: 300000})
-                console.log(`[withdraw]: ${amtLP} LPT by ${user.slice(0, 8)}`)
+                try {
+                    await dex.methods
+                        .withdraw(toWei(amtLP))
+                        .send({ from: user, gas: 300000 })
+                    console.log(`[withdraw]: ${amtLP} LPT by ${user.slice(0, 8)}`)
+                } catch (err) {
+                    console.log("Failed Withdraw!!!");
+                }
             }
             await printBalance(dex)
 

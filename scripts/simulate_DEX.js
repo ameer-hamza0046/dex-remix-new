@@ -147,7 +147,10 @@ async function simulateDEX() {
             if (action === 'swap') {
                 if (Math.random() < 0.5 && balanceA > 0) {
                     const max = Math.min(balanceA, reserveA / 10)
-                    const amt = Math.random() * max
+                    let amt = Math.random() * max
+                    while (amt < 1) {
+                        amt = Math.random() * max
+                    }
                     await dex.methods
                         .swapAforB(toWei(amt))
                         .send({from: user, gas: 300000})
@@ -177,7 +180,10 @@ async function simulateDEX() {
                     )
                 } else if (balanceB > 0) {
                     const max = Math.min(balanceB, reserveB / 10)
-                    const amt = Math.random() * max
+                    let amt = Math.random() * max
+                    while (amt < 1) {
+                        amt = Math.random() * max
+                    }
                     await dex.methods
                         .swapBforA(toWei(amt))
                         .send({from: user, gas: 300000})
